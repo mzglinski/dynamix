@@ -3,11 +3,11 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2025.04.14-3">
+<!ENTITY version   "2025.04.14-4">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "d184c870c0f5ca5dcc45bc5d664b2b0d">
+<!ENTITY MD5       "2798eab3705b58b6a566b419aa10e9f0">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
