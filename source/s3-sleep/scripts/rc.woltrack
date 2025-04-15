@@ -1,0 +1,44 @@
+#!/bin/bash
+plugin=dynamix.s3.sleep
+script=wol_track
+execute=/usr/local/emhttp/plugins/$plugin/scripts/$script
+
+wol_track.start() {
+  if [[ -z $(pgrep -f $execute) ]]; then
+    $execute 1>/dev/null 2>&1
+    echo "$script started"
+  else
+    echo "$script already running!"
+  fi
+}
+
+wol_track.stop() {
+  if [[ -n $(pgrep -f $execute) ]]; then
+    $execute -q 1>/dev/null 2>&1
+    timer=5
+    until [[ -z $(pgrep -f $execute) || $timer -eq 0 ]]; do
+      timer=$((timer-1))
+      sleep 1
+    done
+    echo "$script stopped"
+  else
+    echo "$script not running!"
+  fi
+}
+
+wol_track.restart() {
+  wol_track.stop
+  sleep 1
+  wol_track.start
+}
+
+case "$1" in
+'start')
+ wol_track.start ;;
+'stop')
+ wol_track.stop ;;
+'restart')
+ wol_track.restart ;;
+*)
+ echo "Usage: $(basename $0) start|stop|restart"
+esac

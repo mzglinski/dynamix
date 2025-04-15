@@ -3,7 +3,7 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2025.04.14-4">
+<!ENTITY version   "2025.04.15">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
@@ -194,6 +194,7 @@ fi
 
 # Stop service
 /usr/local/emhttp/plugins/&name;/scripts/rc.s3sleep stop 2>/dev/null
+/usr/local/emhttp/plugins/&name;/scripts/rc.woltrack stop 2>/dev/null
 
 # Remove old 'source' packages
 MD5=$(md5sum &source;.txz 2>/dev/null|grep -Po '^\S+')
@@ -214,6 +215,7 @@ fi
 <INLINE>
 #!/bin/bash
 /usr/local/emhttp/plugins/&name;/scripts/rc.s3sleep start
+/usr/local/emhttp/plugins/&name;/scripts/rc.woltrack start
 </INLINE>
 </FILE>
 
@@ -288,6 +290,7 @@ sed -i '/^sleep=/d' /boot/config/plugins/dynamix/dynamix.cfg
 
 # Stop service
 /usr/local/emhttp/plugins/&name;/scripts/rc.s3sleep stop
+/usr/local/emhttp/plugins/&name;/scripts/rc.woltrack stop
 
 # Remove plugin related files
 rm -rf /boot/config/plugins/&name;

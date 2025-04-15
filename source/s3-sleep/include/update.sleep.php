@@ -73,8 +73,12 @@ foreach ($new as $key => $value) {
   break;}
 }
 exec("$s3sleep stop >/dev/null");
+exec("$woltrack stop >/dev/null");
 $options = trim($options);
 $keys['options'] = $options;
 file_put_contents($config, $options);
-if ($enable) exec("$s3sleep start >/dev/null");
+if ($enable) {
+  exec("$s3sleep start >/dev/null");
+  exec("$woltrack start >/dev/null");
+}
 ?>

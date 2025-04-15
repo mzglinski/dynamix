@@ -92,8 +92,12 @@ function changePort(form) {
 function logNote(note) {
   if (note==1 || note==3) {$("#note").show();} else {$("#note").hide();}
 }
+function showComplexStatus(name, replace = "Status") {
+  $.post('/webGui/include/ProcessStatus.php',{name:name},function(status){$(".tabs").append(status.replace("Status", replace));});
+}
 $(function() {
-  showStatus('s3_sleep');
+  showComplexStatus('s3_sleep', "S3 Sleep");
+  showComplexStatus('wol_track', "WOL Track");
   $("#s1").dropdownchecklist({emptyText:'_(None)_', width:166, explicitClose:'..._(close)_'});
   $("#s2").dropdownchecklist({emptyText:'_(None)_', width:166, explicitClose:'..._(close)_'});
 <?if ($outer):?>
@@ -108,7 +112,7 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
 <input type="hidden" name="#include" value="plugins/<?=$plugin?>/include/update.sleep.php">
 <input type="hidden" name="#config" value="<?=$config?>">
-<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&pingIP=i&stopHour=h&stopDay=d&setWol=w&debug=D&outside=I">
+<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I">
 <input type="hidden" name="#folder" value="<?=$scripts?>">
 <span class="bitstream" style="float:right;margin-right:12px"><?=exec("$scripts/s3_sleep -V")?></span>
 
@@ -263,6 +267,13 @@ _(Set WOL options before sleep)_:
 
 :s3sleep_wol_plug:
 > Set additional WOL options for proper support of S3 sleep. Refer to your system documentation for possibilities.
+:end
+
+_(Watch for WOL packets)_:
+: <input type="text" name="wolTrack" maxlength="2" value="<?=$cfg['wolTrack']?>" class="narrow" placeholder="0">
+
+:s3sleep_wol_track_plug:
+> Number of minutes to check in past for WOL packets. Value 0 disables monitoring.
 :end
 
 <?endif;?>

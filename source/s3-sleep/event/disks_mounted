@@ -11,4 +11,5 @@ if [ "$enable" == "1" -o "$enable" == "2" ]; then
     grep "^options=" $cfg|cut -d'"' -f2|tr -d "\n" >$conf
   fi
   /usr/local/emhttp/plugins/$plugin/scripts/rc.s3sleep start >/dev/null
+  /usr/local/emhttp/plugins/$plugin/scripts/rc.woltrack start >/dev/null
 fi

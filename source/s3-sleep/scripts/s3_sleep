@@ -51,17 +51,17 @@ ini=/var/local/emhttp/disks.ini
 
 # Get flash device
 getFlash() {
-  flash=($(grep -PB13 '^type="Flash' $ini|grep -Po '^device="\K[^"]+'))
+  flash=($(grep -PB14 '^type="Flash' $ini|grep -Po '^device="\K[^"]+'))
 }
 
 # Get list of cache devices (if present)
 getCache() {
-  cache=($(grep -PB13 '^type="Cache' $ini|grep -Po '^device="\K[^"]+'))
+  cache=($(grep -PB14 '^type="Cache' $ini|grep -Po '^device="\K[^"]+'))
 }
 
 # Get list of array devices
 getArray() {
-  array=($(grep -PB13 '^type="(Parity|Data)' $ini|grep -Po '^device="\K[^"]+'))
+  array=($(grep -PB14 '^type="(Parity|Data)' $ini|grep -Po '^device="\K[^"]+'))
 }
 
 # Get list of all devices
@@ -106,6 +106,7 @@ usage() {
  echo " -t time     interval of network / device inactivity"
  echo " -e eth      select interface to monitor"
  echo " -w wol      set WOL options before sleep"
+ echo " -W time     number of minutes to check in past for WOL packets"
  echo " -b name     execute shell script 'name' before sleep"
  echo " -p name     execute shell script 'name' after wake-up"
  echo " -C case     execute case (1) sleep or (2) shutdown"
@@ -140,6 +141,7 @@ checkSSH=no           # check for remote login sessions (telnet or SSH)
 checkTTY=no           # check for local login sessions (if "no" allows console debugging)
 hosts=()              # do not sleep when 'hosts' are pingable
                       # example: <hosts="192.168.1.1 172.16.1.1">
+wolTrack=0            # number of minutes to check in past for WOL packets
 
 # before sleep
 setWol=               # set wol options before sleep
@@ -155,7 +157,7 @@ quit_flag=no          # signal program exit
 sleepNow=no           # force immediate sleep now
 
 # options to overwrite defaults
-while getopts "acnN:i:f:I:d:h:m:t:e:C:w:RFqVSLlb:p:D:" opt; do
+while getopts "acnN:i:f:I:d:h:m:t:e:C:w:W:RFqVSLlb:p:D:" opt; do
   case $opt in
     a) checkHDD=yes ;;
     c) checkCache=no ;;
@@ -174,6 +176,7 @@ while getopts "acnN:i:f:I:d:h:m:t:e:C:w:RFqVSLlb:p:D:" opt; do
          2) action=shutdown ;;
        esac ;;
     w) setWol=$OPTARG ;;
+    W) wolTrack=$OPTARG ;;
     R) dhcpRenew=yes ;;
     F) forceGb=yes ;;
     S) sleepNow=yes ;;
@@ -282,6 +285,40 @@ IP_activity() {
     log "Host activity on going: $ip"
     echo $result
   fi
+}
+
+WOL_activity() {
+  local result=
+  
+  # Return immediately if wolTrack is empty or zero
+  [[ -z $wolTrack || $wolTrack -eq 0 ]] && return
+  
+  # Calculate timestamp for X minutes ago
+  local current_time=$(date +%s)
+  local seconds_ago=$((wolTrack * 60))
+  local minutes_ago=$(date -d @$((current_time - seconds_ago)) "+%b %d %H:%M" 2>/dev/null || 
+                      date -r $((current_time - seconds_ago)) "+%b %d %H:%M" 2>/dev/null)
+  
+  # Check logs for WOL messages in the last X minutes
+  local wol_logs=$(grep "wol_track" /var/log/syslog | grep -A 1000 "$minutes_ago" | grep "MagicPacket")
+  
+  if [[ -n "$wol_logs" ]]; then
+    # Count unique sources
+    local ip_count=$(echo "$wol_logs" | grep "from IP:" | awk '{print $NF}' | sort -u | wc -l)
+    local mac_count=$(echo "$wol_logs" | grep "from MAC:" | awk '{print $NF}' | sort -u | wc -l)
+    
+    # Format summary
+    local summary=""
+    [[ $ip_count -gt 0 ]] && summary+="$ip_count unique IP(s)"
+    [[ $ip_count -gt 0 && $mac_count -gt 0 ]] && summary+=", "
+    [[ $mac_count -gt 0 ]] && summary+="$mac_count unique MAC(s)"
+    
+    # Log the activity
+    log "WOL activity on going: $wolTrack minute(s) ago ($summary)"
+    result=1
+  fi
+  
+  echo $result
 }
 
 TTY_activity() {
@@ -459,7 +496,7 @@ while [[ -f $lockfile ]]; do
         start=$(txrx_bytes)
       else
         log "Check TCP/SSH/TTY/IP activity"
-        if [[ -z $(TCP_activity) && -z $(SSH_activity) && -z $(TTY_activity) && -z $(IP_activity) ]]; then
+        if [[ -z $(TCP_activity) && -z $(SSH_activity) && -z $(TTY_activity) && -z $(IP_activity) && -z $(WOL_activity) ]]; then
           log "Communication state is idle"
           [[ $action == sleep ]] && system_sleep || system_down
           log "System woken-up. Reset timers"
