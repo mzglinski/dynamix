@@ -15,6 +15,7 @@
 $plugin  = 'dynamix.s3.sleep';
 $docroot = $docroot ?? $_SERVER['DOCUMENT_ROOT'] ?: '/usr/local/emhttp';
 $s3sleep = "$docroot/plugins/$plugin/scripts/rc.s3sleep";
+$woltrack = "$docroot/plugins/$plugin/scripts/rc.woltrack";
 
 if (isset ($_POST['excludeList'])) {
   $excludeList = $_POST['excludeList'];
