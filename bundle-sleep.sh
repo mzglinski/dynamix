@@ -9,7 +9,7 @@ mkdir -p /tmp/pkg-s3-sleep/usr/local/emhttp/plugins/dynamix.s3.sleep
 cp -r source/s3-sleep/* /tmp/pkg-s3-sleep/usr/local/emhttp/plugins/dynamix.s3.sleep
 
 cd /tmp/pkg-s3-sleep
-tar -cJf --owner=0 --group=0 $script_dir/archive/dynamix.s3.sleep.txz .
+tar -cJf $script_dir/archive/dynamix.s3.sleep.txz --owner=0 --group=0 --no-same-owner --no-same-permissions .
 cd -
 
 rm -rf /tmp/pkg-s3-sleep
