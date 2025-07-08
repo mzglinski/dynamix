@@ -42,6 +42,7 @@
 # Version 3.0.10  Fix list of devices outside array
 #                 Take into account custom port numbers of telnet and ssh
 # Version 3.0.11  Use sdspin to monitor disks (provided by Doron)
+# Version 3.0.12  Compatibility with Unraid 7.1+
 #
 # Bergware International
 ####################################################################################
@@ -49,19 +50,60 @@ version=3.0.11
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
+# Helper function to get devices by type from INI file
+getDevicesByType() {
+  local target_types=("$@")
+  local devices=()
+  local device=""
+  local type=""
+  
+  while IFS= read -r line; do
+    if [[ $line =~ ^\[.*\]$ ]]; then
+      # New section - process previous if it matches target types
+      if [[ -n $device && -n $type ]]; then
+        for target_type in "${target_types[@]}"; do
+          if [[ $type == "$target_type" ]]; then
+            devices+=($device)
+            break
+          fi
+        done
+      fi
+      # Reset for new section
+      device=""
+      type=""
+    elif [[ $line =~ ^device=\"(.*)\"$ ]]; then
+      device="${BASH_REMATCH[1]}"
+    elif [[ $line =~ ^type=\"(.*)\"$ ]]; then
+      type="${BASH_REMATCH[1]}"
+    fi
+  done < "$ini"
+  
+  # Process last section if it matches target types
+  if [[ -n $device && -n $type ]]; then
+    for target_type in "${target_types[@]}"; do
+      if [[ $type == "$target_type" ]]; then
+        devices+=($device)
+        break
+      fi
+    done
+  fi
+  
+  echo "${devices[@]}"
+}
+
 # Get flash device
 getFlash() {
-  flash=($(grep -PB14 '^type="Flash' $ini|grep -Po '^device="\K[^"]+'))
+  flash=($(getDevicesByType "Flash"))
 }
 
 # Get list of cache devices (if present)
 getCache() {
-  cache=($(grep -PB14 '^type="Cache' $ini|grep -Po '^device="\K[^"]+'))
+  cache=($(getDevicesByType "Cache"))
 }
 
 # Get list of array devices
 getArray() {
-  array=($(grep -PB14 '^type="(Parity|Data)' $ini|grep -Po '^device="\K[^"]+'))
+  array=($(getDevicesByType "Parity" "Data"))
 }
 
 # Get list of all devices
