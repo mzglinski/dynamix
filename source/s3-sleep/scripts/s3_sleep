@@ -45,10 +45,11 @@
 # Version 3.0.12  Compatibility with Unraid 7.1+
 # Version 3.0.13  Fix netowrk activity calculations
 # Version 3.0.14  Fix WOL activity calculation
+# Version 3.1.0   Add network activity delay
 #
 # Bergware International
 ####################################################################################
-version=3.0.14
+version=3.1.0
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
@@ -131,7 +132,7 @@ fi
 
 usage() {
  echo
- echo "Usage: $program [-acnRFSLlVq] [-f type] [-I disk] [-N idle] [-i ip] [-d day] [-h hour] [-m time] [-t time] [-e eth] [-w wol] [-b name] [-p name] [-C case] [-D 0-4] [-ED]"
+ echo "Usage: $program [-acnRFSLlVq] [-f type] [-I disk] [-N idle] [-i ip] [-d day] [-h hour] [-m time] [-t time] [-T time] [-e eth] [-w wol] [-b name] [-p name] [-C case] [-D 0-4] [-ED]"
  echo " -a          wait for array inactivity"
  echo " -c          exclude cache drive from array monitoring"
  echo " -f type     1 = device status monitoring only, 2 = device counters monitoring only"
@@ -148,6 +149,7 @@ usage() {
  echo " -h hour     Excluded hour (may be repeated as many times as desired)"
  echo " -m time     extra delay after array inactivity"
  echo " -t time     interval of network / device inactivity"
+ echo " -T time     network activity delay in minutes (default: 0)"
  echo " -e eth      select interface to monitor"
  echo " -w wol      set WOL options before sleep"
  echo " -W time     number of minutes to check in past for WOL packets"
@@ -181,6 +183,7 @@ skipHour=()           # only countdown towards sleep outside these hours
 checkTCP=no           # check for TCP activity
 eth=eth0              # interface to monitor TCP activity
 idle=0                # threshold of TCP activity in KB
+delayNetwork=0        # delay in minutes after network activity drops below threshold
 checkSSH=no           # check for remote login sessions (telnet or SSH)
 checkTTY=no           # check for local login sessions (if "no" allows console debugging)
 hosts=()              # do not sleep when 'hosts' are pingable
@@ -201,7 +204,7 @@ quit_flag=no          # signal program exit
 sleepNow=no           # force immediate sleep now
 
 # options to overwrite defaults
-while getopts "acnN:i:f:I:d:h:m:t:e:C:w:W:RFqVSLlb:p:D:" opt; do
+while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:" opt; do
   case $opt in
     a) checkHDD=yes ;;
     c) checkCache=no ;;
@@ -214,6 +217,7 @@ while getopts "acnN:i:f:I:d:h:m:t:e:C:w:W:RFqVSLlb:p:D:" opt; do
     h) skipHour+=($OPTARG) ;;
     m) delayInit=$OPTARG ;;
     t) timerInit=$OPTARG ;;
+    T) delayNetwork=$OPTARG ;;
     e) eth=$OPTARG ;;
     C) case $OPTARG in
          1) action=sleep ;;
@@ -529,6 +533,7 @@ command-args=$*
 action mode=$action
 check disks status=$checkHDD
 check network activity=$checkTCP
+network delay=$delayNetwork minutes
 check active devices=$devices
 check local login=$checkTTY
 check remote login=$checkSSH
@@ -574,6 +579,7 @@ fi
 
 # main (continuous loop)
 extraDelay=$delayInit
+networkDelay=$delayNetwork
 [[ $checkTCP == yes ]] && start=0 || start=-1
 while [[ -f $lockfile ]]; do
   if [[ -z $(exclude_period) ]]; then
@@ -586,6 +592,7 @@ while [[ -f $lockfile ]]; do
     else
       log "Disk activity detected. Reset timers."
       extraDelay=$delayInit
+      networkDelay=$delayNetwork
     fi
     if [[ $extraDelay -lt 0 ]]; then
       if [[ $start -eq 0 ]]; then
@@ -593,11 +600,36 @@ while [[ -f $lockfile ]]; do
         start=$(txrx_bytes)
       else
         log "Check TCP/SSH/TTY/IP activity"
-        if [[ -z $(TCP_activity) && -z $(SSH_activity) && -z $(TTY_activity) && -z $(IP_activity) && -z $(WOL_activity) ]]; then
+        tcp_active=$(TCP_activity)
+        ssh_active=$(SSH_activity)
+        tty_active=$(TTY_activity)
+        ip_active=$(IP_activity)
+        wol_active=$(WOL_activity)
+        
+        # Check if network activity is above threshold
+        if [[ -n $tcp_active ]]; then
+          log "Network activity detected. Reset network delay timer."
+          networkDelay=$delayNetwork
+        else
+          # Network is idle, countdown network delay if configured
+          if [[ $delayNetwork -gt 0 ]]; then
+            if [[ $networkDelay -ge 0 ]]; then
+              log "Network delay period running: $networkDelay minute(s)"
+              ((networkDelay--))
+            fi
+          else
+            # No network delay configured, set to -1 to indicate ready
+            networkDelay=-1
+          fi
+        fi
+        
+        # Only sleep if network delay period is over and all activities are idle
+        if [[ $networkDelay -lt 0 && -z $tcp_active && -z $ssh_active && -z $tty_active && -z $ip_active && -z $wol_active ]]; then
           log "Communication state is idle"
           [[ $action == sleep ]] && system_sleep || system_down
           log "System woken-up. Reset timers"
           extraDelay=$delayInit
+          networkDelay=$delayNetwork
           [[ $checkTCP == yes ]] && start=0 || start=-1
         fi
         [[ $start -gt 0 ]] && start=$(txrx_bytes)

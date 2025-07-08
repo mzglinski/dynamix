@@ -112,7 +112,7 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
 <input type="hidden" name="#include" value="plugins/<?=$plugin?>/include/update.sleep.php">
 <input type="hidden" name="#config" value="<?=$config?>">
-<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I">
+<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I">
 <input type="hidden" name="#folder" value="<?=$scripts?>">
 <span class="bitstream" style="float:right;margin-right:12px"><?=exec("$scripts/s3_sleep -V")?></span>
 
@@ -232,6 +232,13 @@ _(Network idle threshold)_:
 
 :s3sleep_idle_plug:
 > Network activity is measured under different thresholds. Ranging from completely silent to megabit traffic. Experiment with this setting to find to right balance for your situation.
+:end
+
+_(Network activity delay)_:
+: <input type="text" name="networkDelay" maxlength="3" value="<?=$cfg['networkDelay']?>" class="narrow" placeholder="0">
+
+:s3sleep_network_delay_plug:
+> Specify additional delay in minutes after network activity drops below threshold. Value may be 0 for no delay (default behavior).
 :end
 
 _(Wait for host inactivity)_ (_(IP address)_):
