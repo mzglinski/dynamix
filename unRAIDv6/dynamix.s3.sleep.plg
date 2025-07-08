@@ -3,11 +3,11 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2025.07.10b">
+<!ENTITY version   "2025.07.10c">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "e7037f2b4d75c7fff354f2c6ddff13c7">
+<!ENTITY MD5       "16ed0b92aaffc9be7e3f9391f8ca5bea">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
@@ -16,6 +16,9 @@
 ##&name;
 
 ###&version;
+- fix idle traffic settings
+
+###2025.07.10b
 - updated s3_sleep script to 3.0.14
 - fix WOL activity calculation
 

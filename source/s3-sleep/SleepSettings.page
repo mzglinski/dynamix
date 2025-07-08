@@ -224,10 +224,10 @@ _(Ethernet interface)_:
 _(Network idle threshold)_:
 : <select name="idle">
   <?=mk_option($cfg['idle'], "0", _('Silent traffic')." [0 kb/s]")?>
-  <?=mk_option($cfg['idle'], "10240", _('Low traffic')." [10 kb/s]")?>
-  <?=mk_option($cfg['idle'], "102400", _('Medium traffic')." [100 kb/s]")?>
-  <?=mk_option($cfg['idle'], "512000", _('High traffic')." [500 kb/s]")?>
-  <?=mk_option($cfg['idle'], "1024000", _('Mega traffic')." [1 Mb/s]")?>
+  <?=mk_option($cfg['idle'], "10", _('Low traffic')." [10 kb/s]")?>
+  <?=mk_option($cfg['idle'], "100", _('Medium traffic')." [100 kb/s]")?>
+  <?=mk_option($cfg['idle'], "500", _('High traffic')." [500 kb/s]")?>
+  <?=mk_option($cfg['idle'], "1024", _('Mega traffic')." [1 Mb/s]")?>
   </select>
 
 :s3sleep_idle_plug:
