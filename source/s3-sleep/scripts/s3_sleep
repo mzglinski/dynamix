@@ -43,6 +43,7 @@
 #                 Take into account custom port numbers of telnet and ssh
 # Version 3.0.11  Use sdspin to monitor disks (provided by Doron)
 # Version 3.0.12  Compatibility with Unraid 7.1+
+# Version 3.0.13  Fix netowrk activity calculations
 #
 # Bergware International
 ####################################################################################
@@ -304,11 +305,11 @@ txrx_bytes() {
 TCP_activity() {
   result=
   if [[ $checkTCP == yes ]]; then
-    delta=$((($(txrx_bytes)-$start)/120))
+    delta=$(((($(txrx_bytes)-$start)/1024)/60))
     [[ $delta -gt $idle ]] && result=1
   fi
   if [[ -n $result ]]; then
-    log "Network activity on going: $(($delta*8)) b/s"
+    log "Network activity on going: $delta kb/s"
     echo $result
   fi
 }
@@ -383,7 +384,7 @@ SSH_activity() {
     [[ $(lsof -O -w -l -i -n -P|awk "/:($telnet|$ssh)-.*\(ESTABLISHED\)\$/"|wc -l) -gt 0 ]] && result=1
   fi
   if [[ -n $result ]]; then
-    log "Remote activity on going: telnet/ssh"
+    log "Remote activity ongoing: telnet/ssh"
     echo $result
   fi
 }

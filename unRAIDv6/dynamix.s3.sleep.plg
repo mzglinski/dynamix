@@ -7,7 +7,7 @@
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "3fafaf5916a9c00173c2dc434c7e2a61">
+<!ENTITY MD5       "d84b0a7e93608f7a6324207c137ec9f4">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
@@ -16,6 +16,10 @@
 ##&name;
 
 ###&version;
+- updated s3_sleep script to 3.0.13
+- fix network activity calculations
+
+###2025.07.10
 - updated s3_sleep script to 3.0.12
 - added support for upcoming Unraid version 7+
 - added support for wol packages tracking
