@@ -3,11 +3,11 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2025.07.10d">
+<!ENTITY version   "2025.07.10e">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "7c5f6c9a1c89ee157699febd750cd3b9">
+<!ENTITY MD5       "f411bf63e2587b89cb1048440cb3611d">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
@@ -16,6 +16,10 @@
 ##&name;
 
 ###&version;
+- updated s3_sleep script to 3.1.1
+- improve log messages
+
+2025.07.10d
 - add network activity delay
 - updated s3_sleep script to 3.1.0
 

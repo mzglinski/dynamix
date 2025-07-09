@@ -46,6 +46,7 @@
 # Version 3.0.13  Fix netowrk activity calculations
 # Version 3.0.14  Fix WOL activity calculation
 # Version 3.1.0   Add network activity delay
+# Version 3.1.1   Improve log messages
 #
 # Bergware International
 ####################################################################################
@@ -298,7 +299,7 @@ HDD_activity() {
     done
   fi
   if [[ -n $result ]]; then
-    log "Disk activity on going: $dev"
+    log "Disk activity ongoing: $dev"
     echo $result
   fi
 }
@@ -314,7 +315,7 @@ TCP_activity() {
     [[ $delta -gt $idle ]] && result=1
   fi
   if [[ -n $result ]]; then
-    log "Network activity on going: $delta kb/s"
+    log "Network activity ongoing: $delta kb/s"
     echo $result
   fi
 }
@@ -330,7 +331,7 @@ IP_activity() {
     done
   fi
   if [[ -n $result ]]; then
-    log "Host activity on going: $ip"
+    log "Host activity ongoing: $ip"
     echo $result
   fi
 }
@@ -415,7 +416,7 @@ WOL_activity() {
     [[ $mac_count -gt 0 ]] && summary+="$mac_count unique MAC(s)"
     
     # Log the activity
-    log "WOL activity on going: $wolTrack minute(s) ago ($summary)"
+    log "WOL activity detected within last $wolTrack minute(s) ($summary)"
     result=1
   fi
   
@@ -426,7 +427,7 @@ TTY_activity() {
   result=
   [[ $checkTTY == yes && $(ps -o command,tty|grep '^\-bash'|grep 'tty'|wc -l) -gt 0 ]] && result=1
   if [[ -n $result ]]; then
-    log "Local activity on going: console"
+    log "Local activity ongoing: console"
     echo $result
   fi
 }
