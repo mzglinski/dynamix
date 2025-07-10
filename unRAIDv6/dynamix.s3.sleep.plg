@@ -3,11 +3,11 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2025.07.10e">
+<!ENTITY version   "2025.07.10f">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "f411bf63e2587b89cb1048440cb3611d">
+<!ENTITY MD5       "783de40dd81b5ebeca32c8deeea37959">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
@@ -16,6 +16,9 @@
 ##&name;
 
 ###&version;
+- properly stop wol_track service
+
+2025.07.10e
 - updated s3_sleep script to 3.1.1
 - improve log messages
 
