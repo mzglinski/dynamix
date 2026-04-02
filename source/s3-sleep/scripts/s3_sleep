@@ -47,10 +47,13 @@
 # Version 3.0.14  Fix WOL activity calculation
 # Version 3.1.0   Add network activity delay
 # Version 3.1.1   Improve log messages
+# Version 3.2.0   Add Plex activity monitoring (sessions & connections)
+#                 Exclude Docker network subnets from connection detection
+#                 Add verbose IP logging toggle
 #
 # Bergware International
 ####################################################################################
-version=3.1.0
+version=3.2.0
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
@@ -154,6 +157,10 @@ usage() {
  echo " -e eth      select interface to monitor"
  echo " -w wol      set WOL options before sleep"
  echo " -W time     number of minutes to check in past for WOL packets"
+ echo " -P          check for Plex activity (sessions & connections)"
+ echo " -X port     Plex port to monitor (default: 32400)"
+ echo " -Y name     Plex Docker container name (default: plex)"
+ echo " -Z          log connected Plex client IPs (verbose mode)"
  echo " -b name     execute shell script 'name' before sleep"
  echo " -p name     execute shell script 'name' after wake-up"
  echo " -C case     execute case (1) sleep or (2) shutdown"
@@ -191,6 +198,14 @@ hosts=()              # do not sleep when 'hosts' are pingable
                       # example: <hosts="192.168.1.1 172.16.1.1">
 wolTrack=0            # number of minutes to check in past for WOL packets
 
+# control of plex conditions
+checkPlex=no          # check for Plex activity (sessions & connections)
+plexPort=32400        # Plex port to monitor
+plexContainer=plex    # Plex Docker container name
+plexToken=            # Plex auth token (read at startup)
+plexLocalPattern=     # regex pattern of local IPs to exclude
+plexVerbose=no        # log connected IPs (yes) or just the count (no)
+
 # before sleep
 setWol=               # set wol options before sleep
 preRun=               # no additional commands to run
@@ -205,7 +220,7 @@ quit_flag=no          # signal program exit
 sleepNow=no           # force immediate sleep now
 
 # options to overwrite defaults
-while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:" opt; do
+while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:Z" opt; do
   case $opt in
     a) checkHDD=yes ;;
     c) checkCache=no ;;
@@ -234,6 +249,10 @@ while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:" opt; do
     b) preRun=$OPTARG ;;
     p) postRun=$OPTARG ;;
     D) debug=$OPTARG ;;
+    P) checkPlex=yes ;;
+    X) plexPort=$OPTARG ;;
+    Y) plexContainer=$OPTARG ;;
+    Z) plexVerbose=yes ;;
     q) quit_flag=yes ;;
    \?) usage; exit ;;
     V) echo $program version: $version ; exit ;;
@@ -448,6 +467,53 @@ SSH_activity() {
   fi
 }
 
+PLEX_activity() {
+  result=
+  if [[ $checkPlex == yes ]]; then
+    # Layer 1: Check Plex API for active playback sessions
+    if [[ -n $plexToken ]]; then
+      local api_response
+      api_response=$(curl -sf --max-time 5 \
+        "http://localhost:$plexPort/status/sessions?X-Plex-Token=$plexToken" \
+        -H "Accept: application/json" 2>/dev/null)
+      if [[ -n $api_response ]]; then
+        local count
+        count=$(echo "$api_response" | grep -oP '"size":\s*\K[0-9]+' | head -1)
+        if [[ -n $count && $count -gt 0 ]]; then
+          log "Plex playback active: $count session(s)"
+          result=1
+          echo $result
+          return
+        fi
+      fi
+    fi
+    # Layer 2: Check for external TCP connections to Plex port
+    local plex_ips
+    plex_ips=$(ss -tn state established "( sport = :$plexPort )" 2>/dev/null | \
+      awk 'NR>1 {
+        peer = $4
+        gsub(/[\[\]]/, "", peer)
+        gsub(/::ffff:/, "", peer)
+        sub(/:[0-9]+$/, "", peer)
+        print peer
+      }' | grep -vE "^($plexLocalPattern)$")
+    local plex_conns
+    plex_conns=$(echo "$plex_ips" | grep -c .)
+    if [[ $plex_conns -gt 0 ]]; then
+      if [[ $plexVerbose == yes ]]; then
+        local ip_list=$(echo "$plex_ips" | sort -u | tr '\n' ',' | sed 's/,$//')
+        log "Plex connections active: $plex_conns external client(s) on port $plexPort [$ip_list]"
+      else
+        log "Plex connections active: $plex_conns external client(s) on port $plexPort"
+      fi
+      result=1
+    fi
+  fi
+  if [[ -n $result ]]; then
+    echo $result
+  fi
+}
+
 pre_sleep_activity() {
 # Set WOL MagicPacket options
   if [[ -n $setWol ]]; then
@@ -529,6 +595,40 @@ array=($(echo ${array[@]}|tr ' ' '\n'|sort))
 disks=($(echo ${disks[@]}|tr ' ' '\n'|sort))
 [[ -n $hosts ]] && devices=${hosts[@]} || devices=no
 
+# Initialize Plex monitoring
+if [[ $checkPlex == yes ]]; then
+  # Auto-detect Plex Preferences.xml path from Docker container
+  plexPrefsPath=$(docker inspect "$plexContainer" --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}' 2>/dev/null)
+  if [[ -n $plexPrefsPath ]]; then
+    plexPrefsPath="$plexPrefsPath/Library/Application Support/Plex Media Server/Preferences.xml"
+  fi
+  # Read Plex authentication token
+  if [[ -f "$plexPrefsPath" ]]; then
+    plexToken=$(grep -oP 'PlexOnlineToken="\K[^"]+' "$plexPrefsPath" 2>/dev/null)
+  fi
+  # Build local IP exclusion pattern for connection filtering
+  plexLocalPattern="127\.0\.0\.1|::1|0\.0\.0\.0"
+  while IFS= read -r lip; do
+    escaped=$(echo "$lip" | sed 's/\./\\./g')
+    plexLocalPattern+="|$escaped"
+  done < <(ip -4 addr show 2>/dev/null | awk '/inet /{split($2,a,"/"); print a[1]}')
+  # Exclude Docker network subnets (e.g. Tautulli, other containers connecting to Plex)
+  while IFS= read -r subnet; do
+    [[ -z $subnet ]] && continue
+    local_ip=${subnet%%/*}
+    mask=${subnet##*/}
+    IFS='.' read -r o1 o2 o3 o4 <<< "$local_ip"
+    case $mask in
+      8)  pattern="${o1}\..*" ;;
+      16) pattern="${o1}\.${o2}\..*" ;;
+      24) pattern="${o1}\.${o2}\.${o3}\..*" ;;
+      *)  pattern=$(echo "$local_ip" | sed 's/\./\\./g') ;;
+    esac
+    plexLocalPattern+="|${pattern}"
+  done < <(docker network ls -q 2>/dev/null | xargs -I{} docker network inspect {} --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+fi
+[[ $checkPlex == yes ]] && plexStatus="port=$plexPort, container=$plexContainer, token=$([ -n "$plexToken" ] && echo loaded || echo missing)" || plexStatus=no
+
 echo "----------------------------------------------
 command-args=$*
 action mode=$action
@@ -538,6 +638,7 @@ network delay=$delayNetwork minutes
 check active devices=$devices
 check local login=$checkTTY
 check remote login=$checkSSH
+check plex activity=$plexStatus
 version=$version
 ----------------------------------------------
 included disks=${array[@]}
@@ -606,6 +707,7 @@ while [[ -f $lockfile ]]; do
         tty_active=$(TTY_activity)
         ip_active=$(IP_activity)
         wol_active=$(WOL_activity)
+        plex_active=$(PLEX_activity)
         
         # Check if network activity is above threshold
         if [[ -n $tcp_active ]]; then
@@ -625,7 +727,7 @@ while [[ -f $lockfile ]]; do
         fi
         
         # Only sleep if network delay period is over and all activities are idle
-        if [[ $networkDelay -lt 0 && -z $tcp_active && -z $ssh_active && -z $tty_active && -z $ip_active && -z $wol_active ]]; then
+        if [[ $networkDelay -lt 0 && -z $tcp_active && -z $ssh_active && -z $tty_active && -z $ip_active && -z $wol_active && -z $plex_active ]]; then
           log "Communication state is idle"
           [[ $action == sleep ]] && system_sleep || system_down
           log "System woken-up. Reset timers"

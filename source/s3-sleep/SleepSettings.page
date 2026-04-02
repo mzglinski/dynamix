@@ -79,6 +79,12 @@ function prepareSleep(form) {
 <?endif;?>
   form.pingIP.value = form.pingIP.value.replace(/,/g,' ').replace(/\s+/g,',');
 }
+function changePlex(form) {
+  var disabled = form.checkPlex.value=='';
+  form.plexPort.disabled = disabled;
+  form.plexContainer.disabled = disabled;
+  form.plexVerbose.disabled = disabled;
+}
 function changeIdle(form) {
   var disabled = form.checkTCP.value=='';
   form.idle.disabled = disabled;
@@ -112,7 +118,7 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
 <input type="hidden" name="#include" value="plugins/<?=$plugin?>/include/update.sleep.php">
 <input type="hidden" name="#config" value="<?=$config?>">
-<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I">
+<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I&plexPort=X&plexContainer=Y&plexVerbose=Z">
 <input type="hidden" name="#folder" value="<?=$scripts?>">
 <span class="bitstream" style="float:right;margin-right:12px"><?=exec("$scripts/s3_sleep -V")?></span>
 
@@ -284,6 +290,40 @@ _(Watch for WOL packets)_:
 :end
 
 <?endif;?>
+_(Wait for Plex inactivity)_:
+: <select name="checkPlex" onchange="changePlex(this.form)">
+  <?=mk_option($cfg['checkPlex'], "", _("No"))?>
+  <?=mk_option($cfg['checkPlex'], "-P", _("Yes"))?>
+  </select>
+
+:s3sleep_plex_plug:
+> Select whether active Plex sessions and connections should prevent sleep. When enabled, the system checks for active playback sessions via the Plex API and for external client TCP connections to the Plex port.
+:end
+
+_(Plex port)_:
+: <input type="text" name="plexPort" maxlength="5" value="<?=$cfg['plexPort']?>" class="narrow" placeholder="32400">
+
+:s3sleep_plex_port_plug:
+> The port number Plex Media Server listens on. Default is 32400.
+:end
+
+_(Plex Docker container name)_:
+: <input type="text" name="plexContainer" maxlength="50" value="<?=$cfg['plexContainer']?>" class="narrow" placeholder="plex">
+
+:s3sleep_plex_container_plug:
+> The name of the Plex Docker container. Used to auto-detect the Plex configuration path for API authentication.
+:end
+
+_(Log Plex client IPs)_:
+: <select name="plexVerbose">
+  <?=mk_option($cfg['plexVerbose'], "", _("No (count only)"))?>
+  <?=mk_option($cfg['plexVerbose'], "-Z", _("Yes (show IPs)"))?>
+  </select>
+
+:s3sleep_plex_verbose_plug:
+> When enabled, the IPs of connected Plex clients are logged alongside the connection count. Useful for troubleshooting which devices are preventing sleep.
+:end
+
 _(Custom commands before sleep)_:
 : <textarea name="preRun" rows="3" columns="120" wrap="off" placeholder="_(Enter custom commands here)_"><?=urldecode($cfg['preRun'])?></textarea>
 
