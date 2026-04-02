@@ -50,6 +50,7 @@
 # Version 3.2.0   Add Plex activity monitoring (sessions & connections)
 #                 Exclude Docker network subnets from connection detection
 #                 Add verbose IP logging toggle
+# Version 3.2.1   Add plex delay
 #
 # Bergware International
 ####################################################################################
@@ -161,6 +162,7 @@ usage() {
  echo " -X port     Plex port to monitor (default: 32400)"
  echo " -Y name     Plex Docker container name (default: plex)"
  echo " -Z          log connected Plex client IPs (verbose mode)"
+ echo " -G time     Plex activity delay in minutes (default: 0)"
  echo " -b name     execute shell script 'name' before sleep"
  echo " -p name     execute shell script 'name' after wake-up"
  echo " -C case     execute case (1) sleep or (2) shutdown"
@@ -205,6 +207,7 @@ plexContainer=plex    # Plex Docker container name
 plexToken=            # Plex auth token (read at startup)
 plexLocalPattern=     # regex pattern of local IPs to exclude
 plexVerbose=no        # log connected IPs (yes) or just the count (no)
+delayPlex=0           # delay in minutes after Plex activity drops before allowing sleep
 
 # before sleep
 setWol=               # set wol options before sleep
@@ -220,7 +223,7 @@ quit_flag=no          # signal program exit
 sleepNow=no           # force immediate sleep now
 
 # options to overwrite defaults
-while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:Z" opt; do
+while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:ZG:" opt; do
   case $opt in
     a) checkHDD=yes ;;
     c) checkCache=no ;;
@@ -253,6 +256,7 @@ while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:Z" opt; do
     X) plexPort=$OPTARG ;;
     Y) plexContainer=$OPTARG ;;
     Z) plexVerbose=yes ;;
+    G) delayPlex=$OPTARG ;;
     q) quit_flag=yes ;;
    \?) usage; exit ;;
     V) echo $program version: $version ; exit ;;
@@ -639,6 +643,7 @@ check active devices=$devices
 check local login=$checkTTY
 check remote login=$checkSSH
 check plex activity=$plexStatus
+plex delay=$delayPlex minutes
 version=$version
 ----------------------------------------------
 included disks=${array[@]}
@@ -682,6 +687,7 @@ fi
 # main (continuous loop)
 extraDelay=$delayInit
 networkDelay=$delayNetwork
+plexDelay=$delayPlex
 [[ $checkTCP == yes ]] && start=0 || start=-1
 while [[ -f $lockfile ]]; do
   if [[ -z $(exclude_period) ]]; then
@@ -695,6 +701,7 @@ while [[ -f $lockfile ]]; do
       log "Disk activity detected. Reset timers."
       extraDelay=$delayInit
       networkDelay=$delayNetwork
+      plexDelay=$delayPlex
     fi
     if [[ $extraDelay -lt 0 ]]; then
       if [[ $start -eq 0 ]]; then
@@ -708,6 +715,22 @@ while [[ -f $lockfile ]]; do
         ip_active=$(IP_activity)
         wol_active=$(WOL_activity)
         plex_active=$(PLEX_activity)
+        
+        # Check if Plex activity is detected
+        if [[ -n $plex_active ]]; then
+          log "Plex activity detected. Reset Plex delay timer."
+          plexDelay=$delayPlex
+        else
+          # Plex is idle, countdown delay if configured
+          if [[ $delayPlex -gt 0 && $checkPlex == yes ]]; then
+            if [[ $plexDelay -ge 0 ]]; then
+              log "Plex delay period running: $plexDelay minute(s)"
+              ((plexDelay--))
+            fi
+          else
+            plexDelay=-1
+          fi
+        fi
         
         # Check if network activity is above threshold
         if [[ -n $tcp_active ]]; then
@@ -727,12 +750,13 @@ while [[ -f $lockfile ]]; do
         fi
         
         # Only sleep if network delay period is over and all activities are idle
-        if [[ $networkDelay -lt 0 && -z $tcp_active && -z $ssh_active && -z $tty_active && -z $ip_active && -z $wol_active && -z $plex_active ]]; then
+        if [[ $networkDelay -lt 0 && $plexDelay -lt 0 && -z $tcp_active && -z $ssh_active && -z $tty_active && -z $ip_active && -z $wol_active && -z $plex_active ]]; then
           log "Communication state is idle"
           [[ $action == sleep ]] && system_sleep || system_down
           log "System woken-up. Reset timers"
           extraDelay=$delayInit
           networkDelay=$delayNetwork
+          plexDelay=$delayPlex
           [[ $checkTCP == yes ]] && start=0 || start=-1
         fi
         [[ $start -gt 0 ]] && start=$(txrx_bytes)

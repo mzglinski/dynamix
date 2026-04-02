@@ -3,11 +3,11 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "dynamix.s3.sleep">
 <!ENTITY author    "Bergware">
-<!ENTITY version   "2026.04.02">
+<!ENTITY version   "2026.04.02a">
 <!ENTITY launch    "Settings/SleepSettings">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/mzglinski/dynamix/master/unRAIDv6/&name;.plg">
 <!ENTITY source    "/boot/config/plugins/&name;/&name;">
-<!ENTITY MD5       "27c3d1a490847bb75418baaa24cc7818">
+<!ENTITY MD5       "5c7d32c7e41c53ac835dee6ace7cb042">
 ]>
 
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" min="6.9.0">
@@ -16,6 +16,9 @@
 ##&name;
 
 ###&version;
+- updated s3_sleep script to 3.2.1 - Add plex delay
+
+###2026.04.02
 - updated s3_sleep script to 3.2.0 - Plex activity monitoring
 
 2025.07.10f

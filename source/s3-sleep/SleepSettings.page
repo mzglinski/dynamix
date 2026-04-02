@@ -84,6 +84,7 @@ function changePlex(form) {
   form.plexPort.disabled = disabled;
   form.plexContainer.disabled = disabled;
   form.plexVerbose.disabled = disabled;
+  form.plexDelay.disabled = disabled;
 }
 function changeIdle(form) {
   var disabled = form.checkTCP.value=='';
@@ -118,7 +119,7 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
 <input type="hidden" name="#include" value="plugins/<?=$plugin?>/include/update.sleep.php">
 <input type="hidden" name="#config" value="<?=$config?>">
-<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I&plexPort=X&plexContainer=Y&plexVerbose=Z">
+<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I&plexPort=X&plexContainer=Y&plexVerbose=Z&plexDelay=G">
 <input type="hidden" name="#folder" value="<?=$scripts?>">
 <span class="bitstream" style="float:right;margin-right:12px"><?=exec("$scripts/s3_sleep -V")?></span>
 
@@ -322,6 +323,13 @@ _(Log Plex client IPs)_:
 
 :s3sleep_plex_verbose_plug:
 > When enabled, the IPs of connected Plex clients are logged alongside the connection count. Useful for troubleshooting which devices are preventing sleep.
+:end
+
+_(Plex activity delay)_:
+: <input type="text" name="plexDelay" maxlength="3" value="<?=$cfg['plexDelay']?>" class="narrow" placeholder="0">
+
+:s3sleep_plex_delay_plug:
+> Specify additional delay in minutes after Plex activity drops before allowing sleep. Works like the network activity delay. Value 0 means no delay (default).
 :end
 
 _(Custom commands before sleep)_:
