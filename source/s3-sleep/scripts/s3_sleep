@@ -54,7 +54,7 @@
 #
 # Bergware International
 ####################################################################################
-version=3.2.0
+version=3.2.1
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
