@@ -51,10 +51,11 @@
 #                 Exclude Docker network subnets from connection detection
 #                 Add verbose IP logging toggle
 # Version 3.2.1   Add plex delay
+# Version 3.2.2   Refresh Docker subnet exclusions when checking Plex (Docker may start after s3_sleep)
 #
 # Bergware International
 ####################################################################################
-version=3.2.1
+version=3.2.2
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
@@ -471,9 +472,34 @@ SSH_activity() {
   fi
 }
 
+# Rebuild plexLocalPattern from host IPs and Docker bridge/custom subnets.
+# Must run when Plex is checked: if s3_sleep starts before Docker, startup sees no networks.
+plex_refresh_local_pattern() {
+  plexLocalPattern="127\.0\.0\.1|::1|0\.0\.0\.0"
+  while IFS= read -r lip; do
+    escaped=$(echo "$lip" | sed 's/\./\\./g')
+    plexLocalPattern+="|$escaped"
+  done < <(ip -4 addr show 2>/dev/null | awk '/inet /{split($2,a,"/"); print a[1]}')
+  # Exclude Docker network subnets (e.g. Tautulli, other containers connecting to Plex)
+  while IFS= read -r subnet; do
+    [[ -z $subnet ]] && continue
+    local_ip=${subnet%%/*}
+    mask=${subnet##*/}
+    IFS='.' read -r o1 o2 o3 o4 <<< "$local_ip"
+    case $mask in
+      8)  pattern="${o1}\..*" ;;
+      16) pattern="${o1}\.${o2}\..*" ;;
+      24) pattern="${o1}\.${o2}\.${o3}\..*" ;;
+      *)  pattern=$(echo "$local_ip" | sed 's/\./\\./g') ;;
+    esac
+    plexLocalPattern+="|${pattern}"
+  done < <(docker network ls -q 2>/dev/null | xargs -r -I{} docker network inspect {} --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+}
+
 PLEX_activity() {
   result=
   if [[ $checkPlex == yes ]]; then
+    plex_refresh_local_pattern
     # Layer 1: Check Plex API for active playback sessions
     if [[ -n $plexToken ]]; then
       local api_response
@@ -610,26 +636,8 @@ if [[ $checkPlex == yes ]]; then
   if [[ -f "$plexPrefsPath" ]]; then
     plexToken=$(grep -oP 'PlexOnlineToken="\K[^"]+' "$plexPrefsPath" 2>/dev/null)
   fi
-  # Build local IP exclusion pattern for connection filtering
-  plexLocalPattern="127\.0\.0\.1|::1|0\.0\.0\.0"
-  while IFS= read -r lip; do
-    escaped=$(echo "$lip" | sed 's/\./\\./g')
-    plexLocalPattern+="|$escaped"
-  done < <(ip -4 addr show 2>/dev/null | awk '/inet /{split($2,a,"/"); print a[1]}')
-  # Exclude Docker network subnets (e.g. Tautulli, other containers connecting to Plex)
-  while IFS= read -r subnet; do
-    [[ -z $subnet ]] && continue
-    local_ip=${subnet%%/*}
-    mask=${subnet##*/}
-    IFS='.' read -r o1 o2 o3 o4 <<< "$local_ip"
-    case $mask in
-      8)  pattern="${o1}\..*" ;;
-      16) pattern="${o1}\.${o2}\..*" ;;
-      24) pattern="${o1}\.${o2}\.${o3}\..*" ;;
-      *)  pattern=$(echo "$local_ip" | sed 's/\./\\./g') ;;
-    esac
-    plexLocalPattern+="|${pattern}"
-  done < <(docker network ls -q 2>/dev/null | xargs -I{} docker network inspect {} --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+  # Build local IP exclusion pattern for connection filtering (refreshed each Plex check)
+  plex_refresh_local_pattern
 fi
 [[ $checkPlex == yes ]] && plexStatus="port=$plexPort, container=$plexContainer, token=$([ -n "$plexToken" ] && echo loaded || echo missing)" || plexStatus=no
 
