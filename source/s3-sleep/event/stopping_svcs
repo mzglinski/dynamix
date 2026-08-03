@@ -2,3 +2,4 @@
 plugin="dynamix.s3.sleep"
 /usr/local/emhttp/plugins/$plugin/scripts/rc.s3sleep stop >/dev/null
 /usr/local/emhttp/plugins/$plugin/scripts/rc.woltrack stop >/dev/null
+/usr/local/emhttp/plugins/$plugin/scripts/rc.plextrack stop >/dev/null

@@ -1,0 +1,53 @@
+#!/bin/bash
+plugin=dynamix.s3.sleep
+script=plex_track
+execute=/usr/local/emhttp/plugins/$plugin/scripts/$script
+options=/etc/s3_sleep.conf
+
+plex_track.start() {
+  # only start when Plex monitoring (-P) and SYN tracking (-J <minutes>) are enabled
+  window=$(grep -Po '(^| )-J \K[0-9]+' $options 2>/dev/null)
+  if [[ -z $(grep -E '(^| )-P( |$)' $options 2>/dev/null) || -z $window || $window -eq 0 ]]; then
+    echo "$script not enabled"
+    return
+  fi
+  if [[ -z $(pgrep -f $execute) ]]; then
+    port=$(grep -Po '(^| )-X \K[0-9]+' $options 2>/dev/null)
+    eth=$(grep -Po '(^| )-e \K\S+' $options 2>/dev/null)
+    $execute ${port:+-X $port} ${eth:+-e $eth} 1>/dev/null 2>&1
+    echo "$script started"
+  else
+    echo "$script already running!"
+  fi
+}
+
+plex_track.stop() {
+  if [[ -n $(pgrep -f $execute) ]]; then
+    $execute -q 1>/dev/null 2>&1
+    timer=5
+    until [[ -z $(pgrep -f $execute) || $timer -eq 0 ]]; do
+      timer=$((timer-1))
+      sleep 1
+    done
+    echo "$script stopped"
+  else
+    echo "$script not running!"
+  fi
+}
+
+plex_track.restart() {
+  plex_track.stop
+  sleep 1
+  plex_track.start
+}
+
+case "$1" in
+'start')
+ plex_track.start ;;
+'stop')
+ plex_track.stop ;;
+'restart')
+ plex_track.restart ;;
+*)
+ echo "Usage: $(basename $0) start|stop|restart"
+esac

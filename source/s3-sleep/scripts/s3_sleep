@@ -52,10 +52,13 @@
 #                 Add verbose IP logging toggle
 # Version 3.2.1   Add plex delay
 # Version 3.2.2   Refresh Docker subnet exclusions when checking Plex (Docker may start after s3_sleep)
+# Version 3.3.0   Add Plex connection-attempt (SYN) tracking via plex_track service
+#                 Event-based detection of periodic Plex client polls that the
+#                 once-per-minute connection sampling misses
 #
 # Bergware International
 ####################################################################################
-version=3.2.2
+version=3.3.0
 program=$(basename $0)
 ini=/var/local/emhttp/disks.ini
 
@@ -164,6 +167,7 @@ usage() {
  echo " -Y name     Plex Docker container name (default: plex)"
  echo " -Z          log connected Plex client IPs (verbose mode)"
  echo " -G time     Plex activity delay in minutes (default: 0)"
+ echo " -J time     Plex connection-attempt window in minutes (default: 0 = disabled, requires plex_track)"
  echo " -b name     execute shell script 'name' before sleep"
  echo " -p name     execute shell script 'name' after wake-up"
  echo " -C case     execute case (1) sleep or (2) shutdown"
@@ -209,6 +213,9 @@ plexToken=            # Plex auth token (read at startup)
 plexLocalPattern=     # regex pattern of local IPs to exclude
 plexVerbose=no        # log connected IPs (yes) or just the count (no)
 delayPlex=0           # delay in minutes after Plex activity drops before allowing sleep
+plexSynWindow=0       # treat inbound Plex connection attempts (SYNs) within this many
+                      # minutes as activity; 0 = disabled (requires plex_track service)
+plexState=/dev/shm/plex_track.state  # per-IP last-seen state file written by plex_track
 
 # before sleep
 setWol=               # set wol options before sleep
@@ -224,7 +231,7 @@ quit_flag=no          # signal program exit
 sleepNow=no           # force immediate sleep now
 
 # options to overwrite defaults
-while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:ZG:" opt; do
+while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:ZG:J:" opt; do
   case $opt in
     a) checkHDD=yes ;;
     c) checkCache=no ;;
@@ -258,6 +265,7 @@ while getopts "acnN:i:f:I:d:h:m:t:T:e:C:w:W:RFqVSLlb:p:D:PX:Y:ZG:" opt; do
     Y) plexContainer=$OPTARG ;;
     Z) plexVerbose=yes ;;
     G) delayPlex=$OPTARG ;;
+    J) plexSynWindow=$OPTARG ;;
     q) quit_flag=yes ;;
    \?) usage; exit ;;
     V) echo $program version: $version ; exit ;;
@@ -538,6 +546,29 @@ PLEX_activity() {
       fi
       result=1
     fi
+    # Layer 3: Check for recent inbound connection attempts (SYNs) tracked by plex_track.
+    # Catches periodic client polls whose short-lived connections are missed by the
+    # once-per-minute sampling of layer 2.
+    if [[ -z $result && $plexSynWindow -gt 0 && -s $plexState ]]; then
+      local now=$(date +%s)
+      local syn_ips=()
+      local ts ip
+      while read -r ts ip; do
+        [[ $ts =~ ^[0-9]+$ && -n $ip ]] || continue
+        if [[ $((now-ts)) -le $((plexSynWindow*60)) ]] && ! [[ $ip =~ ^($plexLocalPattern)$ ]]; then
+          syn_ips+=($ip)
+        fi
+      done < $plexState
+      if [[ ${#syn_ips[@]} -gt 0 ]]; then
+        if [[ $plexVerbose == yes ]]; then
+          local syn_list=$(IFS=,; echo "${syn_ips[*]}")
+          log "Plex connection attempt(s) within last $plexSynWindow minute(s): ${#syn_ips[@]} client(s) [$syn_list]"
+        else
+          log "Plex connection attempt(s) within last $plexSynWindow minute(s): ${#syn_ips[@]} client(s)"
+        fi
+        result=1
+      fi
+    fi
   fi
   if [[ -n $result ]]; then
     echo $result
@@ -652,6 +683,7 @@ check local login=$checkTTY
 check remote login=$checkSSH
 check plex activity=$plexStatus
 plex delay=$delayPlex minutes
+plex syn window=$plexSynWindow minutes
 version=$version
 ----------------------------------------------
 included disks=${array[@]}

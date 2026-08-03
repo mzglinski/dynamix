@@ -16,6 +16,7 @@ $plugin  = 'dynamix.s3.sleep';
 $docroot = $docroot ?? $_SERVER['DOCUMENT_ROOT'] ?: '/usr/local/emhttp';
 $s3sleep = "$docroot/plugins/$plugin/scripts/rc.s3sleep";
 $woltrack = "$docroot/plugins/$plugin/scripts/rc.woltrack";
+$plextrack = "$docroot/plugins/$plugin/scripts/rc.plextrack";
 
 if (isset ($_POST['excludeList'])) {
   $excludeList = $_POST['excludeList'];
@@ -75,11 +76,13 @@ foreach ($new as $key => $value) {
 }
 exec("$s3sleep stop >/dev/null");
 exec("$woltrack stop >/dev/null");
+exec("$plextrack stop >/dev/null");
 $options = trim($options);
 $keys['options'] = $options;
 file_put_contents($config, $options);
 if ($enable) {
   exec("$s3sleep start >/dev/null");
   exec("$woltrack start >/dev/null");
+  exec("$plextrack start >/dev/null");
 }
 ?>

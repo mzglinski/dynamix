@@ -85,6 +85,7 @@ function changePlex(form) {
   form.plexContainer.disabled = disabled;
   form.plexVerbose.disabled = disabled;
   form.plexDelay.disabled = disabled;
+  form.plexSyn.disabled = disabled;
 }
 function changeIdle(form) {
   var disabled = form.checkTCP.value=='';
@@ -105,6 +106,7 @@ function showComplexStatus(name, replace = "Status") {
 $(function() {
   showComplexStatus('s3_sleep', "S3 Sleep");
   showComplexStatus('wol_track', "WOL Track");
+  showComplexStatus('plex_track', "Plex Track");
   $("#s1").dropdownchecklist({emptyText:'_(None)_', width:166, explicitClose:'..._(close)_'});
   $("#s2").dropdownchecklist({emptyText:'_(None)_', width:166, explicitClose:'..._(close)_'});
 <?if ($outer):?>
@@ -119,7 +121,7 @@ $(function() {
 <input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
 <input type="hidden" name="#include" value="plugins/<?=$plugin?>/include/update.sleep.php">
 <input type="hidden" name="#config" value="<?=$config?>">
-<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I&plexPort=X&plexContainer=Y&plexVerbose=Z&plexDelay=G">
+<input type="hidden" name="#prefix" value="timeout=m&port=e&idle=N&networkDelay=T&pingIP=i&stopHour=h&stopDay=d&setWol=w&wolTrack=W&debug=D&outside=I&plexPort=X&plexContainer=Y&plexVerbose=Z&plexDelay=G&plexSyn=J">
 <input type="hidden" name="#folder" value="<?=$scripts?>">
 <span class="bitstream" style="float:right;margin-right:12px"><?=exec("$scripts/s3_sleep -V")?></span>
 
@@ -330,6 +332,15 @@ _(Plex activity delay)_:
 
 :s3sleep_plex_delay_plug:
 > Specify additional delay in minutes after Plex activity drops before allowing sleep. Works like the network activity delay. Value 0 means no delay (default).
+:end
+
+_(Plex connection-attempt window)_:
+: <input type="text" name="plexSyn" maxlength="3" value="<?=$cfg['plexSyn']?>" class="narrow" placeholder="0">
+
+:s3sleep_plex_syn_plug:
+> Number of minutes to look back for inbound Plex connection attempts (TCP SYNs) captured by the plex_track service. Any attempt within this window counts as Plex activity, so periodic client polls that are missed by the once-per-minute connection sampling still prevent sleep. Set slightly above the client poll interval, e.g. 3. Value 0 disables SYN tracking (default).
+>
+> Note: the Plex activity delay still applies after the window goes cold, so the effective idle time before sleep is this window plus the Plex activity delay (e.g. 3 + 15 = ~18 minutes after the last connection attempt).
 :end
 
 _(Custom commands before sleep)_:

@@ -12,4 +12,5 @@ if [ "$enable" == "1" -o "$enable" == "2" ]; then
   fi
   /usr/local/emhttp/plugins/$plugin/scripts/rc.s3sleep start >/dev/null
   /usr/local/emhttp/plugins/$plugin/scripts/rc.woltrack start >/dev/null
+  /usr/local/emhttp/plugins/$plugin/scripts/rc.plextrack start >/dev/null
 fi
